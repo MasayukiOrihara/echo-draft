@@ -1,4 +1,4 @@
-import { RecordAndTranscribe } from "./component/RecordAndTranscribe";
+import { RecordAndTranscribe } from "../components/RecordAndTranscribe";
 
 export default function Home() {
   return (

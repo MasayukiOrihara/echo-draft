@@ -2,11 +2,13 @@
 
 import { Button } from '@/components/ui/button';
 import React, { use, useRef, useState } from 'react';
+import { AudioWaveform } from './audio/AudioWaveform';
 
 export const RecordAndTranscribe: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [status, setStatus] = useState<'idle' | 'recording' | 'uploading'>('idle');
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -14,6 +16,7 @@ export const RecordAndTranscribe: React.FC = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setStream(stream); // ← 波形コンポーネントに渡す
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm', // ブラウザが対応してればこれでOK
@@ -29,6 +32,8 @@ export const RecordAndTranscribe: React.FC = () => {
 
       mediaRecorder.onstop = async () => {
         // 録音終了 → Blob 作成
+        setStream(null);
+        
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         chunksRef.current = [];
 
@@ -93,6 +98,22 @@ export const RecordAndTranscribe: React.FC = () => {
           {status === 'recording' && '録音中…'}
           {status === 'uploading' && '文字起こし中…'}
         </span>
+      </div>
+
+      {/* 波形（完全に独立したコンポーネント） */}
+      <div>
+        <h2 className="mb-1 text-sm font-semibold text-muted-foreground">
+          波形プレビュー
+        </h2>
+        <div className="rounded-md border bg-black/90 p-2">
+          <AudioWaveform
+            stream={stream}
+            active={isRecording}
+            width={600}
+            height={120}
+            className="w-full"
+          />
+        </div>
       </div>
 
       <h2>文字起こし結果</h2>
