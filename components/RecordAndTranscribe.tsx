@@ -54,7 +54,10 @@ export function RecordAndTranscribe({
   const [isSending, setIsSending] = useState(false);
 
   const recordingStartRef = useRef<number | null>(null);
-  const isSilent = useRef(true);
+
+  // 無音判定
+  const isSilentRealtimeRef = useRef(false);
+  const isSilentBlobRef = useRef(false);
 
   const { isRecording, start, stop, stream } = useSegmentedRecorder({
     source,
@@ -62,12 +65,13 @@ export function RecordAndTranscribe({
     mimeType: "audio/webm",
     onSegment: async (blob, index) => {
       // 無音検知1
-      if (isSilent.current) {
+      if (isSilentRealtimeRef.current) {
         console.log("[skip] realtime silent", index);
         return;
       }
       // 無音検知2
-      if (await isSilentBlob(blob)) {
+      isSilentBlobRef.current = await isSilentBlob(blob);
+      if (isSilentBlobRef.current) {
         console.log("[skip] blob silent", index);
         return;
       }
@@ -124,9 +128,9 @@ export function RecordAndTranscribe({
 
     const cleanup = createSilenceDetector(stream, {
       threshold: 0.01,
-      minSilentMs: 2000,
+      minSilentMs: 1000,
       onSilenceChange: (silent) => {
-        isSilent.current = silent;
+        isSilentRealtimeRef.current = silent;
         console.log("[SilenceDetector]", { silent });
       },
     });
@@ -168,7 +172,13 @@ export function RecordAndTranscribe({
 
       {/* 送信中インジケータ */}
       <div className="text-xs text-muted-foreground">
-        {isSending ? "セグメントを送信中..." : isRecording ? "録音中..." : null}
+        {isSending && "セグメント送信中..."}
+        {!isSending &&
+          isRecording &&
+          (isSilentRealtimeRef.current || isSilentBlobRef.current
+            ? "無音なので送信待機中..."
+            : "録音中...")}
+        {!isRecording && !isSending && "待機中"}
       </div>
 
       {/* 波形を出したい場合は stream を渡す */}
