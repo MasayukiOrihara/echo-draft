@@ -10,6 +10,7 @@ export interface UseSegmentedRecorderOptions {
   segmentMs?: number; // デフォルト 10秒
   mimeType?: string; // デフォルト "audio/webm"
   onSegment?: (blob: Blob, index: number) => void | Promise<void>;
+  gain?: number;
 }
 
 export interface UseSegmentedRecorderReturn {
@@ -31,6 +32,7 @@ export function useSegmentedRecorder(
     segmentMs = 10_000,
     mimeType = "audio/webm",
     onSegment,
+    gain = 2.0,
   } = options;
 
   const [isRecording, setIsRecording] = useState(false);
@@ -42,13 +44,40 @@ export function useSegmentedRecorder(
   const segmentIndexRef = useRef(0);
   const isRecordingRef = useRef(false);
 
+  // AudioContext / GainNode を保持して stop 時に片付ける
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  /**
+   * 生の MediaStream に GainNode を噛ませて、音量アップした Stream を返す
+   */
+  const attachGain = useCallback(
+    async (input: MediaStream): Promise<MediaStream> => {
+      // AudioContext を毎回作る（録音ごとに作成＆破棄）
+      const ctx = new AudioContext();
+      audioContextRef.current = ctx;
+
+      const sourceNode = ctx.createMediaStreamSource(input);
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = gain;
+
+      const dest = ctx.createMediaStreamDestination();
+
+      sourceNode.connect(gainNode);
+      gainNode.connect(dest);
+
+      // dest.stream を MediaRecorder に渡す
+      return dest.stream;
+    },
+    [gain]
+  );
+
   /**
    * ストリームの取得
    * - system: getDisplayMedia → audioTrack だけ抜き出して audio-only Stream にする
    * - mic: getUserMedia audio
    */
   const setupStream = useCallback(async (): Promise<MediaStream> => {
-    let s: MediaStream;
+    let rawStream: MediaStream;
 
     if (source === "system") {
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -62,14 +91,14 @@ export function useSegmentedRecorder(
         throw new Error("No audio track in displayMedia stream");
       }
 
-      const audioOnlyStream = new MediaStream(audioTracks);
+      // const audioOnlyStream = new MediaStream(audioTracks);
 
       // 映像トラックは不要なので止めてしまう
       displayStream.getVideoTracks().forEach((t) => t.stop());
 
-      s = audioOnlyStream;
+      rawStream = new MediaStream(audioTracks);
     } else {
-      s = await navigator.mediaDevices.getUserMedia({
+      rawStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -77,9 +106,11 @@ export function useSegmentedRecorder(
       });
     }
 
-    streamRef.current = s;
-    setStream(s);
-    return s;
+    const processedStream = await attachGain(rawStream);
+
+    streamRef.current = processedStream;
+    setStream(processedStream);
+    return processedStream;
   }, [source]);
 
   /**

@@ -20,6 +20,26 @@ interface RecordAndTranscribeProps {
   source?: AudioSource; // "mic" | "system"、デフォルト mic
 }
 
+// 辞書の型
+type DictionaryRule = {
+  pattern: RegExp;
+  replace: string;
+};
+
+// 固有名詞辞書
+const DICTIONARY: DictionaryRule[] = [
+  { pattern: /こーどますたー|コードマスター/gi, replace: "CodeMaster" },
+  { pattern: /ねすと(じぇいえす|js)/gi, replace: "NestJS" },
+  { pattern: /ぷりずま/gi, replace: "Prisma" },
+];
+
+// 関数
+export const normalizeText = (text: string) =>
+  DICTIONARY.reduce(
+    (acc, rule) => acc.replace(rule.pattern, rule.replace),
+    text
+  );
+
 /**
  * レコード + 変換
  * @param param0
@@ -70,7 +90,8 @@ export function RecordAndTranscribe({
         }
 
         const data = await res.json();
-        const text = data.text ?? "";
+        // 簡易辞書補正
+        const text = normalizeText(data.text) ?? "";
 
         setSegments((prev) => [...prev, { index, text, startMs }]);
       } catch (e) {
