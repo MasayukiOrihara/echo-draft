@@ -124,7 +124,7 @@ export function RecordAndTranscribe({
 
     const cleanup = createSilenceDetector(stream, {
       threshold: 0.01,
-      minSilentMs: 800,
+      minSilentMs: 2000,
       onSilenceChange: (silent) => {
         isSilent.current = silent;
         console.log("[SilenceDetector]", { silent });
