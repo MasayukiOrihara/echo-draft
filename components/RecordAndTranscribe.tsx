@@ -20,6 +20,11 @@ interface RecordAndTranscribeProps {
   source?: AudioSource; // "mic" | "system"、デフォルト mic
 }
 
+/**
+ * レコード + 変換
+ * @param param0
+ * @returns
+ */
 export function RecordAndTranscribe({
   source = "system",
 }: RecordAndTranscribeProps) {

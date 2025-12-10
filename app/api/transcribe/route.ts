@@ -6,6 +6,11 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+/**
+ * 音声チャンクを処理して文字列に書き出す
+ * @param req
+ * @returns
+ */
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();

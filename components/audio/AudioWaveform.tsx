@@ -11,6 +11,11 @@ type AudioWaveformProps = {
   className?: string;
 };
 
+/**
+ * 音声波形表示
+ * @param param0
+ * @returns
+ */
 export function AudioWaveform({
   stream,
   active = true,
