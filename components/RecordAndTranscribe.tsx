@@ -1,17 +1,19 @@
 // src/components/RecordAndTranscribe.tsx
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   useSegmentedRecorder,
   AudioSource,
 } from "@/hooks/useSegmentedRecorder";
 import { Button } from "@/components/ui/button";
 import { AudioWaveform } from "./audio/AudioWaveform";
+import { formatTime } from "@/lib/formatTime";
 
 type SegmentText = {
   index: number;
   text: string;
+  startMs: number; // 開始時刻（ミリ秒）
 };
 
 interface RecordAndTranscribeProps {
@@ -19,10 +21,12 @@ interface RecordAndTranscribeProps {
 }
 
 export function RecordAndTranscribe({
-  source = "mic",
+  source = "system",
 }: RecordAndTranscribeProps) {
   const [segments, setSegments] = useState<SegmentText[]>([]);
   const [isSending, setIsSending] = useState(false);
+
+  const recordingStartRef = useRef<number | null>(null);
 
   const { isRecording, start, stop, stream } = useSegmentedRecorder({
     source,
@@ -34,6 +38,10 @@ export function RecordAndTranscribe({
       // ここで OpenAI API に投げる
       const formData = new FormData();
       formData.append("file", blob, `segment-${index}.webm`);
+
+      const now = Date.now();
+      const startMs =
+        recordingStartRef.current != null ? now - recordingStartRef.current : 0;
 
       try {
         setIsSending(true);
@@ -51,7 +59,7 @@ export function RecordAndTranscribe({
           );
           setSegments((prev) => [
             ...prev,
-            { index, text: `#${index} エラー (${res.status})` },
+            { index, text: `#${index} エラー (${res.status})`, startMs },
           ]);
           return;
         }
@@ -59,12 +67,12 @@ export function RecordAndTranscribe({
         const data = await res.json();
         const text = data.text ?? "";
 
-        setSegments((prev) => [...prev, { index, text }]);
+        setSegments((prev) => [...prev, { index, text, startMs }]);
       } catch (e) {
         console.error("[RecordAndTranscribe] fetch error", e);
         setSegments((prev) => [
           ...prev,
-          { index, text: `#${index} 通信エラー` },
+          { index, text: `#${index} 通信エラー`, startMs },
         ]);
       } finally {
         setIsSending(false);
@@ -74,6 +82,7 @@ export function RecordAndTranscribe({
 
   const handleStart = async () => {
     setSegments([]); // 新規録音ごとにリセットしたいなら
+    recordingStartRef.current = Date.now();
     await start();
   };
 
@@ -104,11 +113,9 @@ export function RecordAndTranscribe({
       </div>
 
       {/* 送信中インジケータ */}
-      {isSending && (
-        <div className="text-xs text-muted-foreground">
-          セグメントを送信中...
-        </div>
-      )}
+      <div className="text-xs text-muted-foreground">
+        {isSending ? "セグメントを送信中..." : isRecording ? "録音中..." : null}
+      </div>
 
       {/* 波形を出したい場合は stream を渡す */}
       {stream && <AudioWaveform stream={stream} />}
@@ -125,7 +132,9 @@ export function RecordAndTranscribe({
               .sort((a, b) => a.index - b.index)
               .map((seg) => (
                 <li key={seg.index}>
-                  <span className="font-mono text-xs mr-2">#{seg.index}</span>
+                  <span className="font-mono text-xs mr-2 text-gray-500">
+                    [{formatTime(seg.startMs)}]
+                  </span>
                   <span>{seg.text}</span>
                 </li>
               ))}
