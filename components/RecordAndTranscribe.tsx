@@ -1,7 +1,7 @@
 // src/components/RecordAndTranscribe.tsx
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useSegmentedRecorder,
   AudioSource,
@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { AudioWaveform } from "./audio/AudioWaveform";
 import { formatTime } from "@/lib/formatTime";
+import { isSilentBlob } from "./isSilentBlob";
+import { createSilenceDetector } from "./CreateSilenceDetector";
 
 type SegmentText = {
   index: number;
@@ -52,12 +54,23 @@ export function RecordAndTranscribe({
   const [isSending, setIsSending] = useState(false);
 
   const recordingStartRef = useRef<number | null>(null);
+  const isSilent = useRef(true);
 
   const { isRecording, start, stop, stream } = useSegmentedRecorder({
     source,
-    segmentMs: 10_000, // 10秒ごと
+    segmentMs: 12_000, // 12秒ごと
     mimeType: "audio/webm",
     onSegment: async (blob, index) => {
+      // 無音検知1
+      if (isSilent.current) {
+        console.log("[skip] realtime silent", index);
+        return;
+      }
+      // 無音検知2
+      if (await isSilentBlob(blob)) {
+        console.log("[skip] blob silent", index);
+        return;
+      }
       console.log("[RecordAndTranscribe] segment", index, "size=", blob.size);
 
       // ここで OpenAI API に投げる
@@ -105,6 +118,21 @@ export function RecordAndTranscribe({
       }
     },
   });
+
+  useEffect(() => {
+    if (!stream) return;
+
+    const cleanup = createSilenceDetector(stream, {
+      threshold: 0.01,
+      minSilentMs: 800,
+      onSilenceChange: (silent) => {
+        isSilent.current = silent;
+        console.log("[SilenceDetector]", { silent });
+      },
+    });
+
+    return cleanup;
+  }, [stream]);
 
   const handleStart = async () => {
     setSegments([]); // 新規録音ごとにリセットしたいなら
