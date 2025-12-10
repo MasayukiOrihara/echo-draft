@@ -29,7 +29,7 @@ type DictionaryRule = {
 // 固有名詞辞書
 const DICTIONARY: DictionaryRule[] = [
   { pattern: /こーどますたー|コードマスター/gi, replace: "CodeMaster" },
-  { pattern: /ねすと(じぇいえす|js)/gi, replace: "NestJS" },
+  { pattern: /ふくしりんく|フクシリンク/gi, replace: "福祉リンク" },
   { pattern: /ぷりずま/gi, replace: "Prisma" },
 ];
 
