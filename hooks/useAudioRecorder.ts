@@ -4,10 +4,14 @@
 import { useCallback, useRef, useState } from "react";
 
 export type RecorderStatus = "idle" | "recording";
+export type InputSource = "mic" | "system";
 
 type Options = {
+  source?: InputSource;
   /** timeslice ミリ秒（例: 10秒ごとなら 10000） undefined なら stop まで一括 */
   timesliceMs?: number;
+  /** 何秒分送りたいか */
+  windowMs?: number;
   /** 音声チャンクを受け取るコールバック */
   onData?: (blob: Blob, index: number) => void;
 };
@@ -18,7 +22,7 @@ type Options = {
  * @returns
  */
 export function useAudioRecorder(options?: Options) {
-  const { timesliceMs, onData } = options || {};
+  const { source = "mic", timesliceMs, onData } = options ?? {};
 
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -30,7 +34,36 @@ export function useAudioRecorder(options?: Options) {
   const start = useCallback(async () => {
     if (status === "recording") return;
 
-    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    let s: MediaStream;
+    if (source === "system") {
+      // 🖥 画面/タブ + 音声（元ストリーム）
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        audio: true,
+        video: true,
+      });
+
+      // audio トラックだけ取り出す
+      const audioTracks = displayStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        throw new Error("No audio track in displayMedia stream");
+      }
+
+      // 🎧 音声だけの新しい MediaStream を作る
+      const audioOnlyStream = new MediaStream(audioTracks);
+
+      // 映像はもう不要なら止めておく
+      displayStream.getVideoTracks().forEach((t) => t.stop());
+
+      s = audioOnlyStream;
+    } else {
+      // 🎙 通常マイク
+      s = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+    }
     setStream(s);
 
     const mr = new MediaRecorder(s, { mimeType: "audio/webm" });
@@ -38,16 +71,31 @@ export function useAudioRecorder(options?: Options) {
     chunkIndexRef.current = 0;
     chunksRef.current = [];
 
+    const maxChunks =
+      typeof timesliceMs === "number" && options?.windowMs
+        ? Math.ceil(options.windowMs / timesliceMs) // 例: 30sec / 10sec = 3
+        : null;
+
     mr.ondataavailable = (event) => {
       if (event.data.size <= 0) return;
 
+      // まず常に push
+      chunksRef.current.push(event.data);
+
+      // 🔁 リングバッファ：古いチャンクを捨てて「直近 maxChunks 個だけ」にする
+      if (maxChunks && chunksRef.current.length > maxChunks) {
+        const overflow = chunksRef.current.length - maxChunks;
+        chunksRef.current.splice(0, overflow); // 先頭から overflow 個削る
+      }
+
       if (typeof timesliceMs === "number" && onData) {
-        // 10秒ごとなど → その都度コールバックに渡す
+        // 直近 N 秒ぶんだけをつなげた「1本の WebM」
+        const fullBlob = new Blob(chunksRef.current, {
+          type: event.data.type || "audio/webm;codecs=opus",
+        });
+
         const idx = chunkIndexRef.current++;
-        onData(event.data, idx);
-      } else {
-        // 一括モード → とりあえず溜める
-        chunksRef.current.push(event.data);
+        onData(fullBlob, idx); // ← ここで /api/transcribe に投げる側を呼ぶ
       }
     };
 

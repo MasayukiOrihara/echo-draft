@@ -11,14 +11,24 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
  */
 export default function Recorder10SecPage() {
   const [transcript, setTranscript] = useState("");
+  const [source, setSource] = useState<"mic" | "system">("mic");
 
   // ここで録音フックを使う
   const recorder = useAudioRecorder({
+    source,
     timesliceMs: 10_000, // 10秒ごと
+    windowMs: 30_000, // 直近30秒ぶんだけを送る
     onData: async (blob, index) => {
       try {
         const form = new FormData();
         form.append("file", blob, `chunk-${index}.webm`);
+
+        console.log(
+          "[client before fetch] blob size:",
+          blob.size,
+          "type:",
+          blob.type
+        );
 
         const res = await fetch("/api/transcribe", {
           method: "POST",
@@ -43,6 +53,27 @@ export default function Recorder10SecPage() {
       <h1 className="text-xl font-bold">
         🎙️ 10秒ごとの文字起こし（録音ロジック分離版）
       </h1>
+
+      <div className="flex gap-4 items-center">
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="radio"
+            value="mic"
+            checked={source === "mic"}
+            onChange={() => setSource("mic")}
+          />
+          マイク
+        </label>
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="radio"
+            value="system"
+            checked={source === "system"}
+            onChange={() => setSource("system")}
+          />
+          画面/タブ音声
+        </label>
+      </div>
 
       {/* 操作ボタン（UIだけの責務） */}
       <div className="flex items-center gap-4">
