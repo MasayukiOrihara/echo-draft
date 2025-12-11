@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "./ui/button";
 
 type SpeakerSegment = {
   speaker: string;
@@ -49,13 +50,15 @@ export function SpeakerLabelButton(props: { lines: string[] }) {
 
   return (
     <div>
-      <button
+      <Button
         type="button"
         onClick={handleClick}
         disabled={loading || lines.length === 0}
+        variant="outline"
+        className=""
       >
         {loading ? "話者推定中..." : "話者ラベルを付ける"}
-      </button>
+      </Button>
 
       {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
 

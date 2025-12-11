@@ -12,11 +12,17 @@ const GLOBAL_EXCLUDE_PATTERNS = [
   "ご視聴ありがとうございました",
   "ご清聴ありがとうございました",
   "最後までご覧いただき",
+  "最後までご視聴頂き有難う御座いました",
+  "最後までご視聴頂き有難うございました",
+  "最後までご視聴頂きありがとうございました",
+  "最後までご視聴頂きありがとうございました",
   "チャンネル登録よろしく",
   "次回をお楽しみに。",
-  "最後までご視聴頂きありがとうございました。",
-  "最後までご視聴頂きありがとうございました",
   "本日はご覧いただきありがとうございます。",
+  "ここで終わりにしたいと思います。",
+  "以上で終わります。",
+  "ご覧いただきありがとうございます。",
+  "次回の動画でお会いしましょう。",
 ];
 
 /**
@@ -50,7 +56,7 @@ export async function POST(req: Request) {
       timestamp_granularities: ["segment"],
     });
 
-    // ハルネーションを削除
+    // ハルシネーションを削除
     const whisperText = result.text;
     let cleaned = sanitizeByPatterns(whisperText, GLOBAL_EXCLUDE_PATTERNS);
 

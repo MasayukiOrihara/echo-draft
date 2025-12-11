@@ -10,6 +10,7 @@ import { isSilentBlob } from "../lib/audio/isSilentBlob";
 import { AudioSource } from "@/contents/types";
 import { TopicPreviewButton } from "./TopicPreviewButton";
 import { SpeakerLabelButton } from "./SpeakerLabelButton";
+import { SummarizeButton } from "./SummarizeButton";
 
 type SegmentText = {
   index: number;
@@ -198,8 +199,11 @@ export function RecordAndTranscribe({
       {/* <div className="border rounded p-2 text-sm whitespace-pre-wrap bg-background">
         {fullText || "ここに全文が表示されます。"}
       </div> */}
-      <SpeakerLabelButton lines={segments.map((s) => s.text)} />
+      <div className="text-sm">
+        <SpeakerLabelButton lines={segments.map((s) => s.text)} />
+      </div>
       <TopicPreviewButton segments={segments} />
+      <SummarizeButton segments={segments} />
     </div>
   );
 }

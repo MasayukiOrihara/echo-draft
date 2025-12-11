@@ -1,4 +1,6 @@
-// 任意のコンポーネント
+// src/components/SummarizeButton.tsx
+"use client";
+
 import { useState } from "react";
 import { Button } from "./ui/button";
 
@@ -7,13 +9,13 @@ type TranscriptSegment = {
   text: string;
 };
 
-type TopicResponse = {
-  topics: string[];
+type SummaryResponse = {
+  summary: string;
 };
 
-export function TopicPreviewButton(props: { segments: TranscriptSegment[] }) {
+export function SummarizeButton(props: { segments: TranscriptSegment[] }) {
   const { segments } = props;
-  const [topics, setTopics] = useState<string[]>([]);
+  const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -27,7 +29,7 @@ export function TopicPreviewButton(props: { segments: TranscriptSegment[] }) {
     setErrorMsg(null);
 
     try {
-      const res = await fetch("/api/topics", {
+      const res = await fetch("/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -38,15 +40,15 @@ export function TopicPreviewButton(props: { segments: TranscriptSegment[] }) {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        console.error("[TopicPreview] api error", err);
-        setErrorMsg("トピック抽出に失敗しました。");
+        console.error("[Summarize] api error", err);
+        setErrorMsg("要約に失敗しました。");
         return;
       }
 
-      const data = (await res.json()) as TopicResponse;
-      setTopics(data.topics ?? []);
+      const data = (await res.json()) as SummaryResponse;
+      setSummary(data.summary ?? "");
     } catch (e) {
-      console.error("[TopicPreview] fetch error", e);
+      console.error("[Summarize] fetch error", e);
       setErrorMsg("通信エラーが発生しました。");
     } finally {
       setLoading(false);
@@ -54,26 +56,30 @@ export function TopicPreviewButton(props: { segments: TranscriptSegment[] }) {
   };
 
   return (
-    <div className="topic-preview">
+    <div style={{ marginTop: 16 }}>
       <Button
         type="button"
         onClick={handleClick}
         disabled={loading || segments.length === 0}
         variant="outline"
       >
-        {loading ? "抽出中..." : "ここまでのトピックを表示"}
+        {loading ? "要約中..." : "ここまでを要約する"}
       </Button>
 
-      {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
+      {errorMsg && <p style={{ color: "red", marginTop: 8 }}>{errorMsg}</p>}
 
-      {topics.length > 0 && (
-        <div style={{ marginTop: "8px" }}>
-          <h3>これまでのトピック</h3>
-          <ul>
-            {topics.map((t, i) => (
-              <li key={i}>{t}</li>
-            ))}
-          </ul>
+      {summary && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 8,
+            border: "1px solid #ccc",
+            borderRadius: 4,
+            whiteSpace: "pre-wrap",
+            fontSize: 14,
+          }}
+        >
+          {summary}
         </div>
       )}
     </div>
