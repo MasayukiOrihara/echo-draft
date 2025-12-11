@@ -1,6 +1,7 @@
 // app/api/transcribe/route.ts
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { sanitizeByPatterns } from "@/lib/cleaner/sanitizeByPatterns";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -17,14 +18,6 @@ const GLOBAL_EXCLUDE_PATTERNS = [
   "最後までご視聴頂きありがとうございました",
   "本日はご覧いただきありがとうございます。",
 ];
-
-function sanitizeByPatterns(text: string, patterns: string[]): string {
-  let result = text;
-  for (const phrase of patterns) {
-    result = result.replace(new RegExp(phrase, "g"), "");
-  }
-  return result.trim();
-}
 
 /**
  * 音声チャンクを処理して文字列に書き出す
