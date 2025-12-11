@@ -2,15 +2,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  useSegmentedRecorder,
-  AudioSource,
-} from "@/hooks/useSegmentedRecorder";
+import { useSegmentedRecorder } from "@/hooks/useSegmentedRecorder";
 import { Button } from "@/components/ui/button";
 import { AudioWaveform } from "./audio/AudioWaveform";
 import { formatTime } from "@/lib/formatTime";
-import { isSilentBlob } from "./isSilentBlob";
-import { createSilenceDetector } from "./CreateSilenceDetector";
+import { isSilentBlob } from "../lib/audio/isSilentBlob";
+import { AudioSource } from "@/contents/types";
 
 type SegmentText = {
   index: number;
@@ -56,87 +53,76 @@ export function RecordAndTranscribe({
   const recordingStartRef = useRef<number | null>(null);
 
   // 無音判定
-  const isSilentRealtimeRef = useRef(false);
   const isSilentBlobRef = useRef(false);
 
-  const { isRecording, start, stop, stream } = useSegmentedRecorder({
-    source,
-    segmentMs: 12_000, // 12秒ごと
-    mimeType: "audio/webm",
-    onSegment: async (blob, index) => {
-      // 無音検知1
-      if (isSilentRealtimeRef.current) {
-        console.log("[skip] realtime silent", index);
-        return;
-      }
-      // 無音検知2
-      isSilentBlobRef.current = await isSilentBlob(blob);
-      if (isSilentBlobRef.current) {
-        console.log("[skip] blob silent", index);
-        return;
-      }
-      console.log("[RecordAndTranscribe] segment", index, "size=", blob.size);
-
-      // ここで OpenAI API に投げる
-      const formData = new FormData();
-      formData.append("file", blob, `segment-${index}.webm`);
-
-      const now = Date.now();
-      const startMs =
-        recordingStartRef.current != null ? now - recordingStartRef.current : 0;
-
-      try {
-        setIsSending(true);
-        const res = await fetch("/api/transcribe", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          console.error(
-            "[RecordAndTranscribe] transcribe error",
-            res.status,
-            errJson
-          );
-          setSegments((prev) => [
-            ...prev,
-            { index, text: `#${index} エラー (${res.status})`, startMs },
-          ]);
+  const { isRecording, isSilent, start, stop, stream, audioCtx } =
+    useSegmentedRecorder({
+      source,
+      segmentMs: 12_000, // 12秒ごと
+      mimeType: "audio/webm",
+      onSegment: async (blob, index) => {
+        // 無音検知1
+        if (isSilent) {
+          console.log("[skip] realtime silent", index);
           return;
         }
+        // 無音検知2
+        if (audioCtx) {
+          isSilentBlobRef.current = await isSilentBlob(blob, audioCtx);
+          if (isSilentBlobRef.current) {
+            console.log("[skip] blob silent", index);
+            return;
+          }
+        }
+        console.log("[RecordAndTranscribe] segment", index, "size=", blob.size);
 
-        const data = await res.json();
-        // 簡易辞書補正
-        const text = normalizeText(data.text) ?? "";
+        // ここで OpenAI API に投げる
+        const formData = new FormData();
+        formData.append("file", blob, `segment-${index}.webm`);
 
-        setSegments((prev) => [...prev, { index, text, startMs }]);
-      } catch (e) {
-        console.error("[RecordAndTranscribe] fetch error", e);
-        setSegments((prev) => [
-          ...prev,
-          { index, text: `#${index} 通信エラー`, startMs },
-        ]);
-      } finally {
-        setIsSending(false);
-      }
-    },
-  });
+        const now = Date.now();
+        const startMs =
+          recordingStartRef.current != null
+            ? now - recordingStartRef.current
+            : 0;
 
-  useEffect(() => {
-    if (!stream) return;
+        try {
+          setIsSending(true);
+          const res = await fetch("/api/transcribe", {
+            method: "POST",
+            body: formData,
+          });
 
-    const cleanup = createSilenceDetector(stream, {
-      threshold: 0.01,
-      minSilentMs: 1000,
-      onSilenceChange: (silent) => {
-        isSilentRealtimeRef.current = silent;
-        console.log("[SilenceDetector]", { silent });
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            console.error(
+              "[RecordAndTranscribe] transcribe error",
+              res.status,
+              errJson
+            );
+            setSegments((prev) => [
+              ...prev,
+              { index, text: `#${index} エラー (${res.status})`, startMs },
+            ]);
+            return;
+          }
+
+          const data = await res.json();
+          // 簡易辞書補正
+          const text = normalizeText(data.text) ?? "";
+
+          setSegments((prev) => [...prev, { index, text, startMs }]);
+        } catch (e) {
+          console.error("[RecordAndTranscribe] fetch error", e);
+          setSegments((prev) => [
+            ...prev,
+            { index, text: `#${index} 通信エラー`, startMs },
+          ]);
+        } finally {
+          setIsSending(false);
+        }
       },
     });
-
-    return cleanup;
-  }, [stream]);
 
   const handleStart = async () => {
     setSegments([]); // 新規録音ごとにリセットしたいなら
@@ -175,7 +161,7 @@ export function RecordAndTranscribe({
         {isSending && "セグメント送信中..."}
         {!isSending &&
           isRecording &&
-          (isSilentRealtimeRef.current || isSilentBlobRef.current
+          (isSilent || isSilentBlobRef.current
             ? "無音なので送信待機中..."
             : "録音中...")}
         {!isRecording && !isSending && "待機中"}

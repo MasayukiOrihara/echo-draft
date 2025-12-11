@@ -1,9 +1,10 @@
 // src/hooks/useSegmentedRecorder.ts
 "use client";
 
+import { AudioSource } from "@/contents/types";
+import { createSilenceDetector } from "@/lib/audio/createSilenceDetector";
+import { attachGainToStream, closeAudioContext } from "@/lib/audio/gain";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-export type AudioSource = "mic" | "system";
 
 export interface UseSegmentedRecorderOptions {
   source: AudioSource;
@@ -15,9 +16,11 @@ export interface UseSegmentedRecorderOptions {
 
 export interface UseSegmentedRecorderReturn {
   isRecording: boolean;
+  isSilent: boolean;
   start: () => Promise<void>;
   stop: () => void;
   stream: MediaStream | null;
+  audioCtx: AudioContext | null;
 }
 
 /**
@@ -38,6 +41,9 @@ export function useSegmentedRecorder(
   const [isRecording, setIsRecording] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
+  const silenceCleanupRef = useRef<(() => void) | null>(null);
+  const [isSilent, setIsSilent] = useState(false);
+
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,30 +52,6 @@ export function useSegmentedRecorder(
 
   // AudioContext / GainNode を保持して stop 時に片付ける
   const audioContextRef = useRef<AudioContext | null>(null);
-
-  /**
-   * 生の MediaStream に GainNode を噛ませて、音量アップした Stream を返す
-   */
-  const attachGain = useCallback(
-    async (input: MediaStream): Promise<MediaStream> => {
-      // AudioContext を毎回作る（録音ごとに作成＆破棄）
-      const ctx = new AudioContext();
-      audioContextRef.current = ctx;
-
-      const sourceNode = ctx.createMediaStreamSource(input);
-      const gainNode = ctx.createGain();
-      gainNode.gain.value = gain;
-
-      const dest = ctx.createMediaStreamDestination();
-
-      sourceNode.connect(gainNode);
-      gainNode.connect(dest);
-
-      // dest.stream を MediaRecorder に渡す
-      return dest.stream;
-    },
-    [gain]
-  );
 
   /**
    * ストリームの取得
@@ -91,8 +73,6 @@ export function useSegmentedRecorder(
         throw new Error("No audio track in displayMedia stream");
       }
 
-      // const audioOnlyStream = new MediaStream(audioTracks);
-
       // 映像トラックは不要なので止めてしまう
       displayStream.getVideoTracks().forEach((t) => t.stop());
 
@@ -106,12 +86,37 @@ export function useSegmentedRecorder(
       });
     }
 
-    const processedStream = await attachGain(rawStream);
+    // audioContextの作成
+    const audioCtx = new AudioContext();
+    audioContextRef.current = audioCtx;
 
-    streamRef.current = processedStream;
-    setStream(processedStream);
-    return processedStream;
-  }, [source]);
+    // ゲインを上げる
+    const { stream: processed, gainNode } = await attachGainToStream(
+      rawStream,
+      gain,
+      audioCtx
+    );
+
+    // 無音検知
+    silenceCleanupRef.current = createSilenceDetector(
+      {
+        type: "node",
+        node: gainNode,
+      },
+      {
+        audioCtx,
+        onSilenceChange: (silent) => {
+          setIsSilent(silent);
+          console.log("[SilenceDetector]", { silent });
+        },
+      }
+    );
+
+    // ストリームの保存
+    streamRef.current = processed;
+    setStream(processed);
+    return processed;
+  }, [source, gain]);
 
   /**
    * 1セグメント分の録音を開始
@@ -247,6 +252,18 @@ export function useSegmentedRecorder(
       streamRef.current = null;
     }
     setStream(null);
+
+    // 無音検知の停止
+    if (silenceCleanupRef.current) {
+      silenceCleanupRef.current();
+      silenceCleanupRef.current = null;
+    }
+
+    // audio 後始末
+    if (audioContextRef.current) {
+      closeAudioContext(audioContextRef.current);
+      audioContextRef.current = null;
+    }
   }, []);
 
   // アンマウント時のクリーンアップ
@@ -258,8 +275,10 @@ export function useSegmentedRecorder(
 
   return {
     isRecording,
+    isSilent,
     start,
     stop,
     stream,
+    audioCtx: audioContextRef.current,
   };
 }

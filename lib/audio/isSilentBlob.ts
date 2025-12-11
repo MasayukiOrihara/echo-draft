@@ -1,11 +1,18 @@
+/**
+ * blob の静寂状態を判定する関数
+ * @param blob
+ * @param audioCtx
+ * @param param2
+ * @returns
+ */
 export async function isSilentBlob(
   blob: Blob,
+  audioCtx: AudioContext,
   {
     threshold = 0.01, // RMSのしきい値
   }: { threshold?: number } = {}
 ): Promise<boolean> {
   const arrayBuffer = await blob.arrayBuffer();
-  const audioCtx = new AudioContext();
   const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
   let sum = 0;

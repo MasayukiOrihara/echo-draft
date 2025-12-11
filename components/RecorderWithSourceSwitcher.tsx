@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { RecordAndTranscribe } from "@/components/RecordAndTranscribe";
-import type { AudioSource } from "@/hooks/useSegmentedRecorder";
 import { Button } from "@/components/ui/button";
+import { AudioSource } from "@/contents/types";
 
 export function RecorderWithSourceSwitcher() {
   const [source, setSource] = useState<AudioSource>("mic");

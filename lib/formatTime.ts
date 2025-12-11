@@ -1,3 +1,8 @@
+/**
+ * 時間表示のフォーマットを行う関数
+ * @param ms ミリ秒
+ * @returns [00:00]
+ */
 export const formatTime = (ms: number) => {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
