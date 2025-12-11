@@ -8,6 +8,8 @@ import { AudioWaveform } from "./audio/AudioWaveform";
 import { formatTime } from "@/lib/formatTime";
 import { isSilentBlob } from "../lib/audio/isSilentBlob";
 import { AudioSource } from "@/contents/types";
+import { TopicPreviewButton } from "./TopicPreviewButton";
+import { SpeakerLabelButton } from "./SpeakerLabelButton";
 
 type SegmentText = {
   index: number;
@@ -58,7 +60,7 @@ export function RecordAndTranscribe({
   const { isRecording, isSilent, start, stop, stream, audioCtx } =
     useSegmentedRecorder({
       source,
-      segmentMs: 12_000, // 12秒ごと
+      segmentMs: 10_000,
       mimeType: "audio/webm",
       onSegment: async (blob, index) => {
         // 無音検知1
@@ -193,9 +195,11 @@ export function RecordAndTranscribe({
       </div>
 
       {/* 全文まとめて表示する用 */}
-      <div className="border rounded p-2 text-sm whitespace-pre-wrap bg-background">
+      {/* <div className="border rounded p-2 text-sm whitespace-pre-wrap bg-background">
         {fullText || "ここに全文が表示されます。"}
-      </div>
+      </div> */}
+      <SpeakerLabelButton lines={segments.map((s) => s.text)} />
+      <TopicPreviewButton segments={segments} />
     </div>
   );
 }
