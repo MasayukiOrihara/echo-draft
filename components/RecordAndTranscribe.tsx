@@ -8,9 +8,9 @@ import { AudioWaveform } from "./audio/AudioWaveform";
 import { formatTime } from "@/lib/formatTime";
 import { isSilentBlob } from "../lib/audio/isSilentBlob";
 import { AudioSource } from "@/contents/types";
-import { TopicPreviewButton } from "./TopicPreviewButton";
-import { SpeakerLabelButton } from "./SpeakerLabelButton";
-import { SummarizeButton } from "./SummarizeButton";
+import { SpeakerLabelButton } from "./transcriptActions/SpeakerLabelButton";
+import { TopicPreviewButton } from "./transcriptActions/TopicPreviewButton";
+import { SummarizeButton } from "./transcriptActions/SummarizeButton";
 
 type SegmentText = {
   index: number;
