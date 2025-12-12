@@ -5,12 +5,12 @@ import { parseTopicsWithFallback } from "@/lib/parseTopicsWithFallback";
 import { gpt4oMini } from "@/llms/models.llm";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
+/**
+ * トピックを抽出する
+ * @param req
+ * @returns
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as TopicRequest;
