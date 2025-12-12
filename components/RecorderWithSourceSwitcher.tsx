@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { RecordAndTranscribe } from "@/components/RecordAndTranscribe";
 import { Button } from "@/components/ui/button";
-import { AudioSource } from "@/contents/types";
+import { AudioSource } from "@/contents/types/audio.type";
 
 export function RecorderWithSourceSwitcher() {
   const [source, setSource] = useState<AudioSource>("mic");

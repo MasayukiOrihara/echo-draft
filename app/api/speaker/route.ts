@@ -1,24 +1,15 @@
 // app/api/speaker/route.ts
+import {
+  SegmentText,
+  SpeakerLabelRequest,
+  SpeakerLabelResponse,
+} from "@/contents/types/action.type";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-type SpeakerLabelRequest = {
-  lines: string[];
-  title?: string;
-};
-
-type SpeakerSegment = {
-  speaker: string;
-  text: string;
-};
-
-type SpeakerLabelResponse = {
-  segments: SpeakerSegment[];
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -100,9 +91,9 @@ ${numbered}
       );
     }
 
-    let segments: SpeakerSegment[] = [];
+    let segments: SegmentText[] = [];
     try {
-      const parsed = JSON.parse(raw) as { segments?: SpeakerSegment[] };
+      const parsed = JSON.parse(raw) as { segments?: SegmentText[] };
       segments = parsed.segments ?? [];
     } catch (e) {
       console.error("[speaker] JSON parse error", e, raw);

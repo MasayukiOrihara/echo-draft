@@ -1,14 +1,10 @@
 import { useState } from "react";
 import { Button } from "../ui/button";
-
-type SpeakerSegment = {
-  speaker: string;
-  text: string;
-};
+import { SegmentText } from "@/contents/types/action.type";
 
 export function SpeakerLabelButton(props: { lines: string[] }) {
   const { lines } = props;
-  const [segments, setSegments] = useState<SpeakerSegment[]>([]);
+  const [segments, setSegments] = useState<SegmentText[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -38,7 +34,7 @@ export function SpeakerLabelButton(props: { lines: string[] }) {
         return;
       }
 
-      const data = (await res.json()) as { segments: SpeakerSegment[] };
+      const data = (await res.json()) as { segments: SegmentText[] };
       setSegments(data.segments ?? []);
     } catch (e) {
       console.error("[SpeakerLabel] fetch error", e);

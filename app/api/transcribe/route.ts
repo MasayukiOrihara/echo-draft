@@ -1,76 +1,13 @@
 // app/api/transcribe/route.ts
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { sanitizeByPatterns } from "@/lib/cleaner/sanitizeByPatterns";
+import { transcribeChunk } from "@/lib/transcribe/transcribeChunk";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
-
-// 共通のNGフレーズ
-const GLOBAL_EXCLUDE_PATTERNS = [
-  "ご視聴ありがとうございました",
-  "ご清聴ありがとうございました",
-  "ご覧いただきありがとうございます。",
-  "本日はご覧いただきありがとうございます。",
-  "最後までご覧いただき",
-  "最後までご視聴頂き有難う御座いました",
-  "最後までご視聴頂き有難うございました",
-  "最後までご視聴頂きありがとうございました",
-  "最後までご視聴頂きありがとうございました",
-  "最後までご視聴いただきありがとうございます",
-  "チャンネル登録よろしく",
-  "次回をお楽しみに。",
-  "次回をお楽しみに!",
-  "ここで終わりにしたいと思います。",
-  "以上で終わります。",
-  "次の動画でお会いしましょう",
-  "次回の動画でお会いしましょう。",
-  "次回予告",
-  "字幕視聴ありがとうございました",
-];
-
-/**
- * 音声チャンクを処理して文字列に書き出す
- * @param req
- * @returns
- */
 export async function POST(req: Request) {
-  try {
-    const formData = await req.formData();
-    const blob = formData.get("file");
-
-    if (!(blob instanceof Blob)) {
-      return NextResponse.json({ error: "file is required" }, { status: 400 });
-    }
-
-    console.log("[server blob]", "size=", blob.size, "type=", blob.type);
-
-    const webmFile = new File([blob], "chunk.webm", {
-      type: "audio/webm",
-    });
-
-    // or "whisper-1"
-    // gpt-4o-mini-transcribe
-    const result = await client.audio.transcriptions.create({
-      file: webmFile,
-      model: "whisper-1", // or "whisper-1"
-      language: "ja",
-
-      temperature: 0,
-      timestamp_granularities: ["segment"],
-    });
-
-    // ハルシネーションを削除
-    const whisperText = result.text;
-    let cleaned = sanitizeByPatterns(whisperText, GLOBAL_EXCLUDE_PATTERNS);
-
-    return NextResponse.json({ text: cleaned });
-  } catch (err: any) {
-    console.error("[transcribe] error", err);
-    return NextResponse.json(
-      { error: err?.message ?? "transcribe failed" },
-      { status: 500 }
-    );
+  const formData = await req.formData();
+  const blob = formData.get("file");
+  if (!(blob instanceof Blob)) {
+    return NextResponse.json({ error: "file is required" }, { status: 400 });
   }
+  const text = await transcribeChunk(blob);
+  return NextResponse.json({ text });
 }

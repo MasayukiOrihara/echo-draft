@@ -2,18 +2,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
+import { SegmentText, SummaryResponse } from "@/contents/types/action.type";
 
-type TranscriptSegment = {
-  index: number;
-  text: string;
-};
-
-type SummaryResponse = {
-  summary: string;
-};
-
-export function SummarizeButton(props: { segments: TranscriptSegment[] }) {
+export function SummarizeButton(props: { segments: SegmentText[] }) {
   const { segments } = props;
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);

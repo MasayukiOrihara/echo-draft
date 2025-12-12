@@ -1,17 +1,9 @@
 // 任意のコンポーネント
 import { useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
+import { SegmentText, TopicResponse } from "@/contents/types/action.type";
 
-type TranscriptSegment = {
-  index: number;
-  text: string;
-};
-
-type TopicResponse = {
-  topics: string[];
-};
-
-export function TopicPreviewButton(props: { segments: TranscriptSegment[] }) {
+export function TopicPreviewButton(props: { segments: SegmentText[] }) {
   const { segments } = props;
   const [topics, setTopics] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);

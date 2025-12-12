@@ -1,24 +1,11 @@
 // app/api/summary/route.ts
+import { SummaryRequest, SummaryResponse } from "@/contents/types/action.type";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-type TranscriptSegment = {
-  index: number;
-  text: string;
-};
-
-type SummaryRequest = {
-  segments: TranscriptSegment[];
-  title?: string;
-};
-
-type SummaryResponse = {
-  summary: string;
-};
 
 export async function POST(req: NextRequest) {
   try {

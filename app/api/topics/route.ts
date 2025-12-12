@@ -1,22 +1,11 @@
 // app/api/topics/route.ts
+import { TopicRequest, TopicResponse } from "@/contents/types/action.type";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-type TopicRequest = {
-  segments: {
-    index: number;
-    text: string;
-  }[];
-  title?: string;
-};
-
-type TopicResponse = {
-  topics: string[];
-};
 
 export async function POST(req: NextRequest) {
   try {

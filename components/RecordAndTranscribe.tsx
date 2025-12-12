@@ -7,40 +7,16 @@ import { Button } from "@/components/ui/button";
 import { AudioWaveform } from "./audio/AudioWaveform";
 import { formatTime } from "@/lib/formatTime";
 import { isSilentBlob } from "../lib/audio/isSilentBlob";
-import { AudioSource } from "@/contents/types";
 import { SpeakerLabelButton } from "./transcriptActions/SpeakerLabelButton";
 import { TopicPreviewButton } from "./transcriptActions/TopicPreviewButton";
 import { SummarizeButton } from "./transcriptActions/SummarizeButton";
-
-type SegmentText = {
-  index: number;
-  text: string;
-  startMs: number; // 開始時刻（ミリ秒）
-};
+import { normalizeText } from "@/lib/dictionary/normalizeText";
+import { AudioSource } from "@/contents/types/audio.type";
+import { SegmentText } from "@/contents/types/action.type";
 
 interface RecordAndTranscribeProps {
   source?: AudioSource; // "mic" | "system"、デフォルト mic
 }
-
-// 辞書の型
-type DictionaryRule = {
-  pattern: RegExp;
-  replace: string;
-};
-
-// 固有名詞辞書
-const DICTIONARY: DictionaryRule[] = [
-  { pattern: /こーどますたー|コードマスター/gi, replace: "CodeMaster" },
-  { pattern: /ふくしりんく|フクシリンク/gi, replace: "福祉リンク" },
-  { pattern: /ぷりずま/gi, replace: "Prisma" },
-];
-
-// 関数
-export const normalizeText = (text: string) =>
-  DICTIONARY.reduce(
-    (acc, rule) => acc.replace(rule.pattern, rule.replace),
-    text
-  );
 
 /**
  * レコード + 変換
@@ -183,10 +159,11 @@ export function RecordAndTranscribe({
           <ul className="space-y-1">
             {segments
               .sort((a, b) => a.index - b.index)
+              .filter((seg) => seg.startMs !== undefined)
               .map((seg) => (
                 <li key={seg.index}>
                   <span className="font-mono text-xs mr-2 text-gray-500">
-                    [{formatTime(seg.startMs)}]
+                    [{formatTime(seg.startMs!)}]
                   </span>
                   <span>{seg.text}</span>
                 </li>

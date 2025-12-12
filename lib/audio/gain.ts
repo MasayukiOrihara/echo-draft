@@ -1,5 +1,5 @@
 /** Gain to Stream の返却型 */
-export type GainAttachedStream = {
+type GainAttachedStream = {
   stream: MediaStream;
   sourceNode: MediaStreamAudioSourceNode;
   gainNode: GainNode;

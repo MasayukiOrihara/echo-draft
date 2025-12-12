@@ -1,12 +1,12 @@
 // src/hooks/useSegmentedRecorder.ts
 "use client";
 
-import { AudioSource } from "@/contents/types";
+import { AudioSource } from "@/contents/types/audio.type";
 import { createSilenceDetector } from "@/lib/audio/createSilenceDetector";
 import { attachGainToStream, closeAudioContext } from "@/lib/audio/gain";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export interface UseSegmentedRecorderOptions {
+interface UseSegmentedRecorderOptions {
   source: AudioSource;
   segmentMs?: number; // デフォルト 10秒
   mimeType?: string; // デフォルト "audio/webm"
@@ -14,7 +14,7 @@ export interface UseSegmentedRecorderOptions {
   gain?: number;
 }
 
-export interface UseSegmentedRecorderReturn {
+interface UseSegmentedRecorderReturn {
   isRecording: boolean;
   isSilent: boolean;
   start: () => Promise<void>;
