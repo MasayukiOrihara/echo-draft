@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
       text: s.text,
       speaker: s.speaker,
     }));
-    console.log(segments);
 
     const res: SpeakerLabelResponse = { segments };
     return NextResponse.json(res, { status: 200 });
