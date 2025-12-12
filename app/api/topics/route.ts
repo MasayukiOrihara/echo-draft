@@ -1,5 +1,9 @@
 // app/api/topics/route.ts
+import { TOPICS_PROMPT } from "@/contents/prompts/action.prompt";
 import { TopicRequest, TopicResponse } from "@/contents/types/action.type";
+import { parseTopicsWithFallback } from "@/lib/parseTopicsWithFallback";
+import { gpt4oMini } from "@/llms/models.llm";
+import { PromptTemplate } from "@langchain/core/prompts";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -11,6 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as TopicRequest;
 
+    // ガード
     if (!body.segments || body.segments.length === 0) {
       return NextResponse.json(
         { error: "segments is required" },
@@ -28,64 +33,27 @@ export async function POST(req: NextRequest) {
     const title = body.title ?? "会議";
 
     // 2. トピック抽出用プロンプト
-    const prompt = `
-あなたは日本語の会議議事録アシスタントです。
-以下の書き起こしテキストから、「これまで議論されたトピック」を 3〜8 個程度、短い日本語のフレーズで抽出してください。
+    const template = PromptTemplate.fromTemplate(TOPICS_PROMPT);
+    const promptVariables = { title, mergedTranscript };
 
-- できるだけ具体的なトピック名にする（例:「リリース日程」「バグ対応の方針」など）
-- 同じ内容を言い換えただけのものはまとめる
-- JSON の配列 (string[]) だけを出してください。余計な説明は書かないでください。
+    const chain = template.pipe(gpt4oMini);
+    const completion = await chain.invoke(promptVariables);
 
-【会議タイトル】${title}
+    const raw =
+      typeof completion.content === "string"
+        ? completion.content
+        : String(completion.content);
 
-【書き起こしテキスト】:
-${mergedTranscript}
-    `.trim();
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "あなたは日本語の会議議事録からトピックを抽出するアシスタントです。",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      // シンプルに string[] を期待するので json_object までは使わない
-      temperature: 0.2,
-    });
-
-    const raw = completion.choices[0]?.message?.content;
-    if (!raw) {
+    if (!raw?.trim()) {
       return NextResponse.json(
-        { error: "Empty response from OpenAI" },
+        { error: "Empty response from LLM" },
         { status: 500 }
       );
     }
 
-    let topics: string[] = [];
-    try {
-      // ``` や ```json が付いてきた場合に剥がす
-      const cleaned = raw
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .trim();
-
-      topics = JSON.parse(cleaned) as string[];
-    } catch (e) {
-      console.error("[topics] JSON parse error", e, raw);
-      // 最悪、改行区切りでバラすフォールバック
-      topics = raw
-        .split(/\r?\n/)
-        .map((l) => l.replace(/^[-・\s]+/, "").trim())
-        .filter((l) => l.length > 0);
-    }
-
+    const topics = parseTopicsWithFallback(raw);
     const res: TopicResponse = { topics };
+
     return NextResponse.json(res, { status: 200 });
   } catch (e) {
     console.error("[topics] error", e);
